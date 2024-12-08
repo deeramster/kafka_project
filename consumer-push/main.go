@@ -2,14 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
+	"os"
+	"strconv"
 	"time"
+
+	"github.com/deeramster/kafka_project/config"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-// Message - структура для получаемого сообщения
 type Message struct {
 	ID      int    `json:"id"`      // Уникальный числовой идентификатор сообщения
 	Content string `json:"content"` // Текстовое содержимое сообщения
@@ -17,34 +19,53 @@ type Message struct {
 }
 
 func main() {
-	// Создаём консьюмера с указанной конфигурацией
+	// Инициализация логгера
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+
+	cfg := config.LoadConfig()
+	logger.Info("Loaded configuration")
+
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers":  "localhost:9094",      // Адрес Kafka-брокеров
-		"group.id":           "consumer-push-group", // Уникальный идентификатор группы консьюмеров
-		"auto.offset.reset":  "earliest",            // Начать чтение с самого старого сообщения
-		"enable.auto.commit": true,                  // Автоматический коммит смещений
+		"bootstrap.servers":  cfg.BootstrapServers,
+		"group.id":           "consumer-push-group",
+		"auto.offset.reset":  "earliest",
+		"enable.auto.commit": true,
+		"fetch.min.bytes":    1024,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create consumer: %s", err)
+		logger.Error("Failed to create consumer", "error", err)
+		return
 	}
-	defer consumer.Close()
+	defer func(consumer *kafka.Consumer) {
+		err := consumer.Close()
+		if err != nil {
+			logger.Error("Failed to close consumer", "error", err)
+		}
+	}(consumer)
 
-	// Подписываемся на указанный топик
-	consumer.SubscribeTopics([]string{"example-topic"}, nil)
+	if err := consumer.SubscribeTopics([]string{cfg.Topic}, nil); err != nil {
+		logger.Error("Failed to subscribe to topic", "topic", cfg.Topic, "error", err)
+		return
+	}
+	logger.Info("Subscribed to topic", "topic", cfg.Topic)
 
+	t, err := strconv.Atoi(cfg.Timeout)
+	if err != nil {
+		logger.Error("Failed to convert timeout value", "timeout", cfg.Timeout, "error", err)
+	}
 	for {
-		// Пытаемся получить событие с таймаутом
-		ev := consumer.Poll(1000) // Ждём до 1000 мс
+		ev := consumer.Poll(t)
 		switch e := ev.(type) {
 		case *kafka.Message:
 			var message Message
-			json.Unmarshal(e.Value, &message)              // Десериализуем JSON
-			fmt.Printf("Received message: %+v\n", message) // Выводим сообщение на консоль
+			if err := json.Unmarshal(e.Value, &message); err != nil {
+				logger.Error("Failed to deserialize message", "error", err, "raw_message", string(e.Value))
+				continue
+			}
+			logger.Info("Received message", "message", message)
 		case kafka.Error:
-			// Логируем ошибку
-			fmt.Printf("Consumer error: %v\n", e)
+			logger.Error("Consumer error", "error", e)
 		default:
-			// Пустой цикл при отсутствии сообщений
 			time.Sleep(1 * time.Second)
 		}
 	}

@@ -2,14 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
+	"os"
+	"sync"
 	"time"
+
+	"github.com/deeramster/kafka_project/config"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-// Message - структура для отправляемого сообщения
 type Message struct {
 	ID      int    `json:"id"`      // Уникальный числовой идентификатор сообщения
 	Content string `json:"content"` // Текстовое содержимое сообщения
@@ -17,40 +19,79 @@ type Message struct {
 }
 
 func main() {
-	// Создаём продюсера с указанной конфигурацией
+	// Инициализация логгера
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+
+	cfg := config.LoadConfig()
+	logger.Info("Loaded configuration")
+
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9094", // Адрес Kafka-брокеров
-		"acks":              "all",            // Гарантия доставки At Least Once: сообщение считается доставленным, если все реплики подтвердили получение
+		"bootstrap.servers": cfg.BootstrapServers,
+		"acks":              "all", // Гарантия доставки At Least Once
 	})
 	if err != nil {
-		log.Fatalf("Failed to create producer: %s", err)
+		logger.Error("Failed to create producer", "error", err)
+		return
 	}
-	defer producer.Close()
 
-	topic := "example-topic" // Название Kafka-топика, в который будут отправляться сообщения
+	topic := cfg.Topic
+
+	// Канал для синхронизации завершения работы
+	var wg sync.WaitGroup
+
+	// Обработка delivery reports
+	go func() {
+		for event := range producer.Events() {
+			switch e := event.(type) {
+			case *kafka.Message:
+				if e.TopicPartition.Error != nil {
+					logger.Error("Message delivery failed", "error", e.TopicPartition.Error, "message", string(e.Value))
+				} else {
+					logger.Info("Message delivered", "partition", e.TopicPartition.Partition, "offset", e.TopicPartition.Offset)
+				}
+				wg.Done() // Уменьшаем счетчик ожидания
+			default:
+				logger.Warn("Ignored event", "event", e)
+			}
+		}
+	}()
 
 	for i := 0; i < 10; i++ {
-		// Формируем сообщение
 		msg := Message{
-			ID:      i,                   // Порядковый номер сообщения
-			Content: "Hello Kafka!",      // Текст сообщения
-			Time:    time.Now().String(), // Текущая временная метка
+			ID:      i,
+			Content: "Hello Kafka!",
+			Time:    time.Now().String(),
 		}
-		msgBytes, _ := json.Marshal(msg) // Сериализация сообщения в JSON
 
-		// Выводим сообщение на консоль перед отправкой
-		fmt.Printf("Sending message: %+v\n", msg)
+		msgBytes, err := json.Marshal(msg)
+		if err != nil {
+			logger.Error("Failed to serialize message", "error", err, "message", msg)
+			continue
+		}
 
-		// Отправляем сообщение в Kafka
-		producer.Produce(&kafka.Message{
+		// Увеличиваем счетчик ожидания перед отправкой сообщения
+		wg.Add(1)
+
+		err = producer.Produce(&kafka.Message{
 			TopicPartition: kafka.TopicPartition{
-				Topic:     &topic,             // Указываем топик
-				Partition: kafka.PartitionAny, // Автоматический выбор партиции
+				Topic:     &topic,
+				Partition: kafka.PartitionAny,
 			},
-			Value: msgBytes, // Сериализованные данные сообщения
+			Value: msgBytes,
 		}, nil)
 
-		// Небольшая пауза между отправками
+		if err != nil {
+			logger.Error("Failed to produce message", "error", err, "message", msg)
+			wg.Done() // Снижаем счетчик ожидания, если произошла ошибка
+			return
+		}
+
+		logger.Info("Message queued for delivery", "message", msg)
 		time.Sleep(1 * time.Second)
 	}
+
+	// Ждем завершения всех delivery reports
+	wg.Wait()
+
+	logger.Info("All messages processed")
 }

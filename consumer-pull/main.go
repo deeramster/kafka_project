@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
+	"os"
+
+	"github.com/deeramster/kafka_project/config"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-// Message - структура для получаемого сообщения
 type Message struct {
 	ID      int    `json:"id"`      // Уникальный числовой идентификатор сообщения
 	Content string `json:"content"` // Текстовое содержимое сообщения
@@ -16,36 +17,54 @@ type Message struct {
 }
 
 func main() {
-	// Создаём консьюмера с указанной конфигурацией
+	// Инициализация логгера
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+
+	cfg := config.LoadConfig()
+	logger.Info("Loaded configuration")
+
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers":  "localhost:9094",      // Адрес Kafka-брокеров
-		"group.id":           "consumer-pull-group", // Уникальный идентификатор группы консьюмеров
-		"auto.offset.reset":  "earliest",            // Начать чтение с самого старого сообщения, если смещение отсутствует
-		"enable.auto.commit": false,                 // Ручной коммит смещений (гарантия точного контроля над обработкой)
+		"bootstrap.servers":  cfg.BootstrapServers,
+		"group.id":           "consumer-pull-group",
+		"auto.offset.reset":  "earliest",
+		"enable.auto.commit": false,
+		"fetch.min.bytes":    1024,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create consumer: %s", err)
+		logger.Error("Failed to create consumer", "error", err)
+		return
 	}
-	defer consumer.Close()
+	defer func(consumer *kafka.Consumer) {
+		err := consumer.Close()
+		if err != nil {
+			logger.Error("Failed to close consumer", "error", err)
+		}
+	}(consumer)
 
-	// Подписываемся на указанный топик
-	consumer.SubscribeTopics([]string{"example-topic"}, nil)
+	if err := consumer.SubscribeTopics([]string{cfg.Topic}, nil); err != nil {
+		logger.Error("Failed to subscribe to topic", "topic", cfg.Topic, "error", err)
+		return
+	}
+	logger.Info("Subscribed to topic", "topic", cfg.Topic)
 
 	for {
-		// Читаем сообщение из топика
-		msg, err := consumer.ReadMessage(-1) // Блокирующий вызов до получения сообщения
+		msg, err := consumer.ReadMessage(-1)
 		if err == nil {
 			var message Message
-			json.Unmarshal(msg.Value, &message)            // Десериализуем JSON
-			fmt.Printf("Received message: %+v\n", message) // Выводим сообщение на консоль
+			if err := json.Unmarshal(msg.Value, &message); err != nil {
+				logger.Error("Failed to deserialize message", "error", err, "raw_message", string(msg.Value))
+				continue
+			}
+			logger.Info("Received message", "message", message)
 
-			// Коммитим смещение вручную
 			_, commitErr := consumer.Commit()
 			if commitErr != nil {
-				log.Printf("Commit failed: %v\n", commitErr)
+				logger.Error("Failed to commit offsets", "error", commitErr)
+			} else {
+				logger.Info("Offsets committed")
 			}
 		} else {
-			log.Printf("Consumer error: %v\n", err)
+			logger.Error("Consumer error", "error", err)
 		}
 	}
 }

@@ -21,8 +21,15 @@ This project demonstrates a Kafka setup with a producer and two types of consume
     docker exec -it <CONTAINER ID> bash
     kafka-topics.sh --create --topic example-topic --bootstrap-server localhost:9092 --partitions 3 --replication-factor 2
     ```
+3. Create .env file:
 
-3. Run the producer and consumers:
+    ```bash
+    echo > .env BOOTSTRAP_SERVERS=localhost:9094
+    echo >> .env TOPIC=example-topic
+    echo >> .env TIMEOUT=1000
+    ```
+
+4. Run the producer and consumers:
     ```bash
     go run producer/main.go
     go run consumer-pull/main.go
