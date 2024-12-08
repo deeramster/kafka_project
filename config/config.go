@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -27,7 +27,7 @@ type Config struct {
 func parseInt(str string, defaultValue int) int {
 	val, err := strconv.Atoi(str)
 	if err != nil {
-		fmt.Printf("Warning: Invalid integer value for '%s', using default: %d\n", str, defaultValue)
+		log.Printf("Warning: Invalid integer value for '%s', using default: %d\n", str, defaultValue)
 		return defaultValue
 	}
 	return val
@@ -36,7 +36,7 @@ func parseInt(str string, defaultValue int) int {
 func parseBool(str string, defaultValue bool) bool {
 	val, err := strconv.ParseBool(str)
 	if err != nil {
-		fmt.Printf("Warning: Invalid boolean value for '%s', using default: %t\n", str, defaultValue)
+		log.Printf("Warning: Invalid boolean value for '%s', using default: %t\n", str, defaultValue)
 		return defaultValue
 	}
 	return val
@@ -45,7 +45,10 @@ func parseBool(str string, defaultValue bool) bool {
 // LoadConfig загружает конфигурацию из переменных окружения или файла
 func LoadConfig() Config {
 	// Попробуем загрузить переменные из файла .env (для локального запуска)
-	_ = godotenv.Load()
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("Warning: .env file not found, using environment variables\n")
+	}
 
 	config := Config{
 		BootstrapServers:        getEnv("BOOTSTRAP_SERVERS", "localhost:9092"),
