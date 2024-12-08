@@ -9,43 +9,42 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
+// Message - структура для получаемого сообщения
 type Message struct {
-	ID      int    `json:"id"`
-	Content string `json:"content"`
-	Time    string `json:"time"`
+	ID      int    `json:"id"`      // Уникальный числовой идентификатор сообщения
+	Content string `json:"content"` // Текстовое содержимое сообщения
+	Time    string `json:"time"`    // Время отправки сообщения
 }
 
 func main() {
+	// Создаём консьюмера с указанной конфигурацией
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9094",
-		"group.id":          "consumer-push-group",
-		"auto.offset.reset": "earliest",
+		"bootstrap.servers":  "localhost:9094",      // Адрес Kafka-брокеров
+		"group.id":           "consumer-push-group", // Уникальный идентификатор группы консьюмеров
+		"auto.offset.reset":  "earliest",            // Начать чтение с самого старого сообщения
+		"enable.auto.commit": true,                  // Автоматический коммит смещений
 	})
 	if err != nil {
 		log.Fatalf("Failed to create consumer: %s", err)
 	}
-	defer func(consumer *kafka.Consumer) {
-		err := consumer.Close()
-		if err != nil {
+	defer consumer.Close()
 
-		}
-	}(consumer)
-
+	// Подписываемся на указанный топик
 	consumer.SubscribeTopics([]string{"example-topic"}, nil)
 
 	for {
-		ev := consumer.Poll(1000)
+		// Пытаемся получить событие с таймаутом
+		ev := consumer.Poll(1000) // Ждём до 1000 мс
 		switch e := ev.(type) {
 		case *kafka.Message:
 			var message Message
-			err := json.Unmarshal(e.Value, &message)
-			if err != nil {
-				return
-			}
-			fmt.Printf("Received message: %+v\n", message)
+			json.Unmarshal(e.Value, &message)              // Десериализуем JSON
+			fmt.Printf("Received message: %+v\n", message) // Выводим сообщение на консоль
 		case kafka.Error:
-			fmt.Printf("Consumer error: %v", e)
+			// Логируем ошибку
+			fmt.Printf("Consumer error: %v\n", e)
 		default:
+			// Пустой цикл при отсутствии сообщений
 			time.Sleep(1 * time.Second)
 		}
 	}

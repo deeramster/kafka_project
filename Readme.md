@@ -18,6 +18,7 @@ This project demonstrates a Kafka setup with a producer and two types of consume
 
 2. Create the topic:
     ```bash
+    docker exec -it <CONTAINER ID> bash
     kafka-topics.sh --create --topic example-topic --bootstrap-server localhost:9092 --partitions 3 --replication-factor 2
     ```
 

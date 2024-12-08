@@ -8,41 +8,44 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
+// Message - структура для получаемого сообщения
 type Message struct {
-	ID      int    `json:"id"`
-	Content string `json:"content"`
-	Time    string `json:"time"`
+	ID      int    `json:"id"`      // Уникальный числовой идентификатор сообщения
+	Content string `json:"content"` // Текстовое содержимое сообщения
+	Time    string `json:"time"`    // Время отправки сообщения
 }
 
 func main() {
+	// Создаём консьюмера с указанной конфигурацией
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9094",
-		"group.id":          "consumer-pull-group",
-		"auto.offset.reset": "earliest",
+		"bootstrap.servers":  "localhost:9094",      // Адрес Kafka-брокеров
+		"group.id":           "consumer-pull-group", // Уникальный идентификатор группы консьюмеров
+		"auto.offset.reset":  "earliest",            // Начать чтение с самого старого сообщения, если смещение отсутствует
+		"enable.auto.commit": false,                 // Ручной коммит смещений (гарантия точного контроля над обработкой)
 	})
 	if err != nil {
 		log.Fatalf("Failed to create consumer: %s", err)
 	}
-	defer func(consumer *kafka.Consumer) {
-		err := consumer.Close()
-		if err != nil {
+	defer consumer.Close()
 
-		}
-	}(consumer)
-
+	// Подписываемся на указанный топик
 	consumer.SubscribeTopics([]string{"example-topic"}, nil)
 
 	for {
-		msg, err := consumer.ReadMessage(-1)
+		// Читаем сообщение из топика
+		msg, err := consumer.ReadMessage(-1) // Блокирующий вызов до получения сообщения
 		if err == nil {
 			var message Message
-			err := json.Unmarshal(msg.Value, &message)
-			if err != nil {
-				return
+			json.Unmarshal(msg.Value, &message)            // Десериализуем JSON
+			fmt.Printf("Received message: %+v\n", message) // Выводим сообщение на консоль
+
+			// Коммитим смещение вручную
+			_, commitErr := consumer.Commit()
+			if commitErr != nil {
+				log.Printf("Commit failed: %v\n", commitErr)
 			}
-			fmt.Printf("Received message: %+v\n", message)
 		} else {
-			log.Printf("Consumer error: %v", err)
+			log.Printf("Consumer error: %v\n", err)
 		}
 	}
 }
