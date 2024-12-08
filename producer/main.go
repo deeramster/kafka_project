@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"os/signal"
+	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/deeramster/kafka_project/config"
@@ -22,8 +25,9 @@ func main() {
 	// Инициализация логгера
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
+	// Загрузка конфигурации
 	cfg := config.LoadConfig()
-	logger.Info("Loaded configuration")
+	logger.Info("Loaded configuration", "config", cfg)
 
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
@@ -33,8 +37,7 @@ func main() {
 		logger.Error("Failed to create producer", "error", err)
 		return
 	}
-
-	topic := cfg.Topic
+	defer producer.Close()
 
 	// Канал для синхронизации завершения работы
 	var wg sync.WaitGroup
@@ -56,6 +59,21 @@ func main() {
 		}
 	}()
 
+	// Перехват сигналов завершения работы
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+
+	t, err := strconv.Atoi(cfg.ProducerTimeout)
+	if err != nil {
+		logger.Error("Failed to convert timeout value", "timeout", cfg.ProducerTimeout, "error", err)
+	}
+	go func() {
+		<-sigchan
+		logger.Info("Shutdown signal received")
+		producer.Flush(t) // Ждём завершения отправки сообщений
+		os.Exit(0)
+	}()
+
 	for i := 0; i < 10; i++ {
 		msg := Message{
 			ID:      i,
@@ -69,12 +87,11 @@ func main() {
 			continue
 		}
 
-		// Увеличиваем счетчик ожидания перед отправкой сообщения
 		wg.Add(1)
 
-		err = producer.Produce(&kafka.Message{
+		producer.Produce(&kafka.Message{
 			TopicPartition: kafka.TopicPartition{
-				Topic:     &topic,
+				Topic:     &cfg.Topic,
 				Partition: kafka.PartitionAny,
 			},
 			Value: msgBytes,
@@ -82,7 +99,7 @@ func main() {
 
 		if err != nil {
 			logger.Error("Failed to produce message", "error", err, "message", msg)
-			wg.Done() // Снижаем счетчик ожидания, если произошла ошибка
+			wg.Done()
 			return
 		}
 
@@ -93,5 +110,5 @@ func main() {
 	// Ждем завершения всех delivery reports
 	wg.Wait()
 
-	logger.Info("All messages processed")
+	logger.Info("All messages processed, exiting")
 }

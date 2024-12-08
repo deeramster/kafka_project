@@ -49,9 +49,9 @@ func main() {
 	}
 	logger.Info("Subscribed to topic", "topic", cfg.Topic)
 
-	t, err := strconv.Atoi(cfg.Timeout)
+	t, err := strconv.Atoi(cfg.ConsumerTimeout)
 	if err != nil {
-		logger.Error("Failed to convert timeout value", "timeout", cfg.Timeout, "error", err)
+		logger.Error("Failed to convert timeout value", "timeout", cfg.ConsumerTimeout, "error", err)
 	}
 	for {
 		ev := consumer.Poll(t)

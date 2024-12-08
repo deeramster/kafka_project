@@ -10,7 +10,8 @@ import (
 type Config struct {
 	BootstrapServers string // Адреса Kafka-брокеров
 	Topic            string // Название Kafka-топика
-	Timeout          string //
+	ConsumerTimeout  string // Таймаут для Poll
+	ProducerTimeout  string // Таймаут завершения работы producer
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения или файла
@@ -21,7 +22,8 @@ func LoadConfig() Config {
 	config := Config{
 		BootstrapServers: getEnv("BOOTSTRAP_SERVERS", "localhost:9092"),
 		Topic:            getEnv("TOPIC", "example-topic"),
-		Timeout:          getEnv("TIMEOUT", "1000"),
+		ConsumerTimeout:  getEnv("CONSUMER_TIMEOUT", "1000"),
+		ProducerTimeout:  getEnv("PRODUCER_TIMEOUT", "15000"),
 	}
 
 	return config
