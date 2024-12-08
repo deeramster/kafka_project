@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/deeramster/kafka_project/config"
@@ -27,10 +26,10 @@ func main() {
 
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers":  cfg.BootstrapServers,
-		"group.id":           "consumer-push-group",
-		"auto.offset.reset":  "earliest",
-		"enable.auto.commit": true,
-		"fetch.min.bytes":    1024,
+		"group.id":           cfg.PUSH_GROUP_ID,
+		"auto.offset.reset":  cfg.PUSH_AUTO_OFFSET_RESET,
+		"enable.auto.commit": cfg.PUSH_ENABLE_AUTO_COMMIT,
+		"fetch.min.bytes":    cfg.PUSH_FETCH_MIN_BYTES,
 	})
 	if err != nil {
 		logger.Error("Failed to create consumer", "error", err)
@@ -49,12 +48,8 @@ func main() {
 	}
 	logger.Info("Subscribed to topic", "topic", cfg.Topic)
 
-	t, err := strconv.Atoi(cfg.ConsumerTimeout)
-	if err != nil {
-		logger.Error("Failed to convert timeout value", "timeout", cfg.ConsumerTimeout, "error", err)
-	}
 	for {
-		ev := consumer.Poll(t)
+		ev := consumer.Poll(cfg.ConsumerTimeout)
 		switch e := ev.(type) {
 		case *kafka.Message:
 			var message Message

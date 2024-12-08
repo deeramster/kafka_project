@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -63,14 +62,10 @@ func main() {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
-	t, err := strconv.Atoi(cfg.ProducerTimeout)
-	if err != nil {
-		logger.Error("Failed to convert timeout value", "timeout", cfg.ProducerTimeout, "error", err)
-	}
 	go func() {
 		<-sigchan
 		logger.Info("Shutdown signal received")
-		producer.Flush(t) // Ждём завершения отправки сообщений
+		producer.Flush(cfg.ProducerTimeout) // Ждём завершения отправки сообщений
 		os.Exit(0)
 	}()
 
