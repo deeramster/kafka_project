@@ -10,18 +10,18 @@ import (
 
 // Config - структура для хранения параметров конфигурации
 type Config struct {
-	BootstrapServers        string // Адреса Kafka-брокеров
-	Topic                   string // Название Kafka-топика
-	ConsumerTimeout         int    // Таймаут для Poll
-	ProducerTimeout         int    // Таймаут завершения работы producer
-	PUSH_GROUP_ID           string
-	PUSH_AUTO_OFFSET_RESET  string
-	PUSH_ENABLE_AUTO_COMMIT bool
-	PUSH_FETCH_MIN_BYTES    int
-	PULL_GROUP_ID           string
-	PULL_AUTO_OFFSET_RESET  string
-	PULL_ENABLE_AUTO_COMMIT bool
-	PULL_FETCH_MIN_BYTES    int
+	BootstrapServers     string // Адреса Kafka-брокеров
+	Topic                string // Название Kafka-топика
+	ConsumerTimeout      int    // Таймаут для Poll
+	ProducerTimeout      int    // Таймаут завершения работы producer
+	PushGroupId          string
+	PushAutoOffsetReset  string
+	PushEnableAutoCommit bool
+	PushFetchMinBytes    int
+	PullGroupId          string
+	PullAutoOffsetReset  string
+	PullEnableAutoCommit bool
+	PullFetchMinBytes    int
 }
 
 func parseInt(str string, defaultValue int) int {
@@ -50,18 +50,18 @@ func LoadConfig() Config {
 	}
 
 	config := Config{
-		BootstrapServers:        getEnv("BOOTSTRAP_SERVERS", "localhost:9092"),
-		Topic:                   getEnv("TOPIC", "example-topic"),
-		ConsumerTimeout:         parseInt(getEnv("CONSUMER_TIMEOUT", "1000"), 1000),
-		ProducerTimeout:         parseInt(getEnv("PRODUCER_TIMEOUT", "15000"), 15000),
-		PUSH_GROUP_ID:           getEnv("PUSH_GROUP_ID", "example-group"),
-		PUSH_AUTO_OFFSET_RESET:  getEnv("PUSH_AUTO_OFFSET_RESET", "earliest"),
-		PUSH_ENABLE_AUTO_COMMIT: parseBool(getEnv("PUSH_ENABLE_AUTO_COMMIT", "true"), true),
-		PUSH_FETCH_MIN_BYTES:    parseInt(getEnv("PUSH_FETCH_MIN_BYTES", "1024"), 1024),
-		PULL_GROUP_ID:           getEnv("PULL_GROUP_ID", "pull-group"),
-		PULL_AUTO_OFFSET_RESET:  getEnv("PULL_AUTO_OFFSET_RESET", "earliest"),
-		PULL_ENABLE_AUTO_COMMIT: parseBool(getEnv("PULL_ENABLE_AUTO_COMMIT", "false"), false),
-		PULL_FETCH_MIN_BYTES:    parseInt(getEnv("PULL_FETCH_MIN_BYTES", "1024"), 1024),
+		BootstrapServers:     getEnv("BOOTSTRAP_SERVERS", "localhost:9092"),
+		Topic:                getEnv("TOPIC", "example-topic"),
+		ConsumerTimeout:      parseInt(getEnv("CONSUMER_TIMEOUT", "1000"), 1000),
+		ProducerTimeout:      parseInt(getEnv("PRODUCER_TIMEOUT", "15000"), 15000),
+		PushGroupId:          getEnv("PUSH_GROUP_ID", "example-group"),
+		PushAutoOffsetReset:  getEnv("PUSH_AUTO_OFFSET_RESET", "earliest"),
+		PushEnableAutoCommit: parseBool(getEnv("PUSH_ENABLE_AUTO_COMMIT", "true"), true),
+		PushFetchMinBytes:    parseInt(getEnv("PUSH_FETCH_MIN_BYTES", "1024"), 1024),
+		PullGroupId:          getEnv("PULL_GROUP_ID", "pull-group"),
+		PullAutoOffsetReset:  getEnv("PULL_AUTO_OFFSET_RESET", "earliest"),
+		PullEnableAutoCommit: parseBool(getEnv("PULL_ENABLE_AUTO_COMMIT", "false"), false),
+		PullFetchMinBytes:    parseInt(getEnv("PULL_FETCH_MIN_BYTES", "10cc24"), 1024),
 	}
 
 	return config

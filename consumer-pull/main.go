@@ -25,10 +25,10 @@ func main() {
 
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers":  cfg.BootstrapServers,
-		"group.id":           cfg.PULL_GROUP_ID,
-		"auto.offset.reset":  cfg.PULL_AUTO_OFFSET_RESET,
-		"enable.auto.commit": cfg.PULL_ENABLE_AUTO_COMMIT,
-		"fetch.min.bytes":    cfg.PULL_FETCH_MIN_BYTES,
+		"group.id":           cfg.PullGroupId,
+		"auto.offset.reset":  cfg.PullAutoOffsetReset,
+		"enable.auto.commit": cfg.PullEnableAutoCommit,
+		"fetch.min.bytes":    cfg.PullFetchMinBytes,
 	})
 	if err != nil {
 		logger.Error("Failed to create consumer", "error", err)
