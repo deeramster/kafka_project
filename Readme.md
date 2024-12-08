@@ -27,6 +27,18 @@ This project demonstrates a Kafka setup with a producer and two types of consume
     echo > .env BOOTSTRAP_SERVERS=localhost:9094
     echo >> .env TOPIC=example-topic
     echo >> .env TIMEOUT=1000
+    echo >> .env BOOTSTRAP_SERVERS=localhost:9094
+    echo >> .env TOPIC=example-topic
+    echo >> .env CONSUMER_TIMEOUT=1000
+    echo >> .env PRODUCER_TIMEOUT=15000
+    echo >> .env PUSH_GROUP_ID=consumer-push-group
+    echo >> .env PUSH_AUTO_OFFSET_RESET=earliest
+    echo >> .env PUSH_ENABLE_AUTO_COMMIT=true
+    echo >> .env PUSH_FETCH_MIN_BYTES=1024
+    echo >> .env PULL_GROUP_ID=consumer-pull-group
+    echo >> .env PULL_AUTO_OFFSET_RESET=earliest
+    echo >> .env PULL_ENABLE_AUTO_COMMIT=false
+    echo >> .env PULL_FETCH_MIN_BYTES=1024
     ```
 
 4. Run the producer and consumers:
