@@ -24,9 +24,6 @@ This project demonstrates a Kafka setup with a producer and two types of consume
 3. Create .env file:
 
     ```bash
-    echo > .env BOOTSTRAP_SERVERS=localhost:9094
-    echo >> .env TOPIC=example-topic
-    echo >> .env TIMEOUT=1000
     echo >> .env BOOTSTRAP_SERVERS=localhost:9094
     echo >> .env TOPIC=example-topic
     echo >> .env CONSUMER_TIMEOUT=1000
